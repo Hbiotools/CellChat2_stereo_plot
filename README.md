@@ -27,6 +27,8 @@ In addition to infer the intercellular communication from any given scRNA-seq da
 CellChat R package can be easily installed from Github using devtools:  
 
 ```
+# install.packages("devtools")
+devtools::install_github("immunogenomics/presto")
 devtools::install_github("jinworks/CellChat")
 ```
 **Please make sure you have installed the correct version of `NMF` and `circlize` package**. See instruction below. 
@@ -108,7 +110,6 @@ If you use CellChat or CellChatDB in your research, please considering citing ou
      <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fjinworks%2FCellChat&labelColor=%233499cc&countColor=%2370c168" />
    </a>
 </p>
-
 
 
 
