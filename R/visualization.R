@@ -499,7 +499,7 @@ netVisual <- function(object, signaling, signaling.name = NULL, color.use = NULL
 #' @importFrom grDevices recordPlot
 #'
 #' @return  an object of class "recordedplot" or ggplot
-#' @export
+#' @export add function to modify median point ,now is plot maximum 500 area which potin 
 #'
 #'
 netVisual_aggregate <- function(object, signaling, signaling.name = NULL, color.use = NULL, thresh = 0.05, vertex.receiver = NULL, sources.use = NULL, targets.use = NULL, idents.use = NULL, top = 1, remove.isolate = FALSE,
@@ -507,7 +507,7 @@ netVisual_aggregate <- function(object, signaling, signaling.name = NULL, color.
                                 weight.scale = TRUE, edge.weight.max = NULL, edge.width.max=8,
                                 layout = c("circle","hierarchy","chord","spatial"),
                                 pt.title = 12, title.space = 6, vertex.label.cex = 0.8,
-                                alpha.image = 0.15, point.size = 1.5,
+                                sample.use = NULL, alpha.image = 0.15, point.size = 1.5,
                                 group = NULL,cell.order = NULL,small.gap = 1, big.gap = 10, scale = FALSE, reduce = -1, show.legend = FALSE, legend.pos.x = 20,legend.pos.y = 20,
                                 ...) {
   layout <- match.arg(layout)
@@ -522,42 +522,42 @@ netVisual_aggregate <- function(object, signaling, signaling.name = NULL, color.
     }
   }
   pairLR <- searchPair(signaling = signaling, pairLR.use = object@LR$LRsig, key = "pathway_name", matching.exact = T, pair.only = T)
-
+  
   if (is.null(signaling.name)) {
     signaling.name <- signaling
   }
   net <- object@net
-
+  
   pairLR.use.name <- dimnames(net$prob)[[3]]
   pairLR.name <- intersect(rownames(pairLR), pairLR.use.name)
   pairLR <- pairLR[pairLR.name, ]
   prob <- net$prob
   pval <- net$pval
-
+  
   prob[pval > thresh] <- 0
   if (length(pairLR.name) > 1) {
     pairLR.name.use <- pairLR.name[apply(prob[,,pairLR.name], 3, sum) != 0]
   } else {
     pairLR.name.use <- pairLR.name[sum(prob[,,pairLR.name]) != 0]
   }
-
-
+  
+  
   if (length(pairLR.name.use) == 0) {
     stop(paste0('There is no significant communication of ', signaling.name))
   } else {
     pairLR <- pairLR[pairLR.name.use,]
   }
   nRow <- length(pairLR.name.use)
-
+  
   prob <- prob[,,pairLR.name.use]
   pval <- pval[,,pairLR.name.use]
-
+  
   if (length(dim(prob)) == 2) {
     prob <- replicate(1, prob, simplify="array")
     pval <- replicate(1, pval, simplify="array")
   }
   # prob <-(prob-min(prob))/(max(prob)-min(prob))
-
+  
   if (layout == "hierarchy") {
     prob.sum <- apply(prob, c(1,2), sum)
     # prob.sum <-(prob.sum-min(prob.sum))/(max(prob.sum)-min(prob.sum))
@@ -591,8 +591,10 @@ netVisual_aggregate <- function(object, signaling, signaling.name = NULL, color.
     }
     coordinates <- object@images$coordinates
     labels <- object@idents
-    gg <- netVisual_spatial(prob.sum, coordinates = coordinates, labels = labels, alpha.image = alpha.image, point.size = point.size, sources.use = sources.use, targets.use = targets.use, idents.use = idents.use, remove.isolate = remove.isolate, top = top, color.use = color.use, vertex.weight = vertex.weight, vertex.weight.max = vertex.weight.max, vertex.size.max = vertex.size.max, weight.scale = weight.scale, edge.weight.max = edge.weight.max, edge.width.max=edge.width.max,title.name = paste0(signaling.name, " signaling pathway network"), vertex.label.cex = vertex.label.cex,...)
-
+    meta.t <- object@meta
+    meta.t$labels <- labels
+    gg <- netVisual_spatial(prob.sum, coordinates = coordinates, meta = meta.t, sample.use = sample.use, alpha.image = alpha.image, point.size = point.size, sources.use = sources.use, targets.use = targets.use, idents.use = idents.use, remove.isolate = remove.isolate, top = top, color.use = color.use, vertex.weight = vertex.weight, vertex.weight.max = vertex.weight.max, vertex.size.max = vertex.size.max, weight.scale = weight.scale, edge.weight.max = edge.weight.max, edge.width.max=edge.width.max,title.name = paste0(signaling.name, " signaling pathway network"), vertex.label.cex = vertex.label.cex,...)
+    
   } else if (layout == "chord") {
     prob.sum <- apply(prob, c(1,2), sum)
     gg <- netVisual_chord_cell_internal(prob.sum, color.use = color.use, sources.use = sources.use, targets.use = targets.use, remove.isolate = remove.isolate,
@@ -601,9 +603,9 @@ netVisual_aggregate <- function(object, signaling, signaling.name = NULL, color.
                                         scale = scale, reduce = reduce,
                                         title.name = paste0(signaling.name, " signaling pathway network"), show.legend = show.legend, legend.pos.x = legend.pos.x, legend.pos.y= legend.pos.y)
   }
-
+  
   return(gg)
-
+  
 }
 
 
@@ -1442,12 +1444,26 @@ mycircle <- function(coords, v=NULL, params) {
 #' @importFrom ggnetwork geom_nodetext_repel
 #' @return  an object of ggplot
 #' @export
-netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.name = NULL, sources.use = NULL, targets.use = NULL, idents.use = NULL, remove.isolate = FALSE, remove.loop = TRUE, top = 1,
+
+#' @@export modify by solivehong to add print target potit dataframe 
+netVisual_spatial <-function(net, coordinates, meta, sample.use = NULL, color.use = NULL,title.name = NULL, sources.use = NULL, targets.use = NULL, idents.use = NULL, remove.isolate = FALSE, remove.loop = TRUE, top = 1,
                              weight.scale = FALSE, vertex.weight = 20, vertex.weight.max = NULL, vertex.size.max = NULL, vertex.label.cex = 5,vertex.label.color= "black",
                              edge.weight.max = NULL, edge.width.max=8, edge.curved=0.2, alpha.edge = 0.6, arrow.angle = 5, arrow.size = 0.2, alpha.image = 0.15, point.size = 1.5, legend.size = 5){
   cells.level <- rownames(net)
+  labels <- meta$labels
+  samples <- meta$samples
   if (ncol(coordinates) == 2) {
     colnames(coordinates) <- c("x_cent","y_cent")
+    if (length(unique(samples)) > 1) {
+      if (is.null(sample.use)) {
+        stop("`sample.use` should be provided for visualizing signaling on each individual sample.")
+      } else if (sample.use %in% unique(samples)) {
+        coordinates = coordinates[samples == sample.use, ]
+        labels = labels[samples == sample.use]
+      } else {
+        stop("Please check the input `sample.use`, which should be the element in `meta$samples`.")
+      }
+    }
     temp_coordinates = coordinates
     coordinates[,1] = temp_coordinates[,2]
     coordinates[,2] = temp_coordinates[,1]
@@ -1456,12 +1472,59 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
   }
   num_cluster <- length(cells.level)
   node_coords <- matrix(0, nrow = num_cluster, ncol = 2)
+  # for (i in c(1:num_cluster)) {
+  #   node_coords[i,1] <- median(coordinates[as.character(labels) == cells.level[i], 1])
+  #   node_coords[i,2] <- median(coordinates[as.character(labels) == cells.level[i], 2])
+  # }
   for (i in c(1:num_cluster)) {
-    node_coords[i,1] <- median(coordinates[as.character(labels) == cells.level[i], 1])
-    node_coords[i,2] <- median(coordinates[as.character(labels) == cells.level[i], 2])
+    # 获取当前细胞类型的坐标
+    current_coords <- coordinates[as.character(labels) == cells.level[i], ]
+    
+    # 如果没有点，设置为 NA
+    if (nrow(current_coords) == 0) {
+      node_coords[i, 1] <- NA
+      node_coords[i, 2] <- NA
+      next
+    }
+    
+    # 创建一个临时数据框来存储所有点及其频次
+    freq_table <- data.frame(X1 = numeric(0), X2 = numeric(0), freq = integer(0))
+    
+    # 遍历当前细胞类型的所有点
+    for (j in 1:nrow(current_coords)) {
+      x_j <- current_coords[j, 1]
+      y_j <- current_coords[j, 2]
+      
+      # 计算距离小于500的点
+      nearby_points <- current_coords[(
+        (current_coords[, 1] - x_j)^2 + (current_coords[, 2] - y_j)^2) < 500^2, ]
+      
+      # 如果有附近点，更新频次表
+      if (nrow(nearby_points) > 0) {
+        for (k in 1:nrow(nearby_points)) {
+          freq_table <- rbind(freq_table, c(nearby_points[k, 1], nearby_points[k, 2], 1))
+        }
+      }
+    }
+    
+    # 统计频次
+    colnames(freq_table) <- c("X1", "X2", "freq")
+    freq_table <- freq_table %>%
+      group_by(X1, X2) %>%
+      summarise(freq = sum(as.integer(freq)), .groups = 'drop')
+    
+    # 找到频次最高的点
+    if (nrow(freq_table) > 0) {
+      most_frequent_point <- freq_table[which.max(freq_table$freq), ]
+      node_coords[i, 1] <- most_frequent_point$X1
+      node_coords[i, 2] <- most_frequent_point$X2
+    } else {
+      node_coords[i, 1] <- NA
+      node_coords[i, 2] <- NA
+    }
   }
   rownames(node_coords) <- cells.level
-
+  
   if (is.null(vertex.size.max)) {
     if (length(unique(vertex.weight)) == 1) {
       vertex.size.max <- 5
@@ -1472,7 +1535,7 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
   options(warn = -1)
   thresh <- stats::quantile(net, probs = 1-top)
   net[net < thresh] <- 0
-
+  
   if ((!is.null(sources.use)) | (!is.null(targets.use)) | (!is.null(idents.use)) ) {
     if (is.null(rownames(net))) {
       stop("The input weighted matrix should have rownames!")
@@ -1504,8 +1567,8 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
     net <- tapply(df.net[["value"]], list(df.net[["source"]], df.net[["target"]]), sum)
   }
   net[is.na(net)] <- 0
-
-
+  
+  
   if (remove.loop) {
     diag(net) <- 0
   }
@@ -1518,7 +1581,7 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
     node_coords <- node_coords[-idx, ]
     cells.level <- cells.level[-idx]
   }
-
+  
   g <- graph_from_adjacency_matrix(net, mode = "directed", weighted = T)
   edgelist <- get.edgelist(g)
   # loop_curve = c()
@@ -1528,7 +1591,7 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
   #   }
   # }
   # edgelist <- edgelist[-loop_curve,]
-
+  
   edges <- data.frame(node_coords[edgelist[,1],], node_coords[edgelist[,2],])
   colnames(edges) <- c("X1","Y1","X2","Y2")
   node_coords = data.frame(node_coords)
@@ -1551,7 +1614,7 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
   }else{
     igraph::E(g)$width<-0.3+edge.width.max*igraph::E(g)$weight
   }
-
+  
   gg <- ggplot(data=node_family,aes(X1, X2)) +
     geom_curve(aes(x=X1, y=Y1, xend = X2, yend = Y2), data=edges, size = igraph::E(g)$width, curvature = edge.curved, alpha = alpha.edge, arrow = arrow(angle = arrow.angle, type = "closed",length = unit(arrow.size, "inches")),colour=color.use[edgelist[,1]]) +
     geom_point(aes(X1, X2,colour = node_idents), data=node_family, size = vertex.weight,show.legend = TRUE) +scale_color_manual(values = color.use) +
@@ -1559,7 +1622,7 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
     xlab(NULL) + ylab(NULL)  +
     coord_fixed() + theme(aspect.ratio = 1)+ theme(legend.key = element_blank()) +
     theme(panel.background = element_blank(),axis.ticks = element_blank(), panel.border = element_blank(),axis.text=element_blank(),legend.title = element_blank())
-
+  
   gg <- gg + geom_point(aes(x_cent, y_cent), data = coordinates,colour = color.use[labels],alpha = alpha.image, size = point.size, show.legend = FALSE)
   gg <- gg + scale_y_reverse()
   if (vertex.label.cex > 0){
@@ -1568,10 +1631,11 @@ netVisual_spatial <-function(net, coordinates, labels, color.use = NULL,title.na
   if (!is.null(title.name)){
     gg <- gg + ggtitle(title.name) + theme(plot.title = element_text(hjust = 0.5, vjust = 0))
   }
-
+  
   gg
+  print(node_family)
   return(gg)
-
+  
 }
 
 
